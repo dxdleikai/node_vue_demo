@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+    <link href="https://cdn.bootcss.com/twitter-bootstrap/4.3.1/css/bootstrap.min.css" rel="stylesheet">
+
+    <style>
+    [v-cloak] {
+        display: none;
+        }
+    </style>
+</head>
+<body>
+    <form id="vmAdd" action="#0" v-on:submit.prevent="submit">
+        <p><input type="text" v-model="name"></p>
+        <p><input type="text" v-model="description"></p>
+        <p>
+            <button type="submit">submit</button>
+        </p>
+    </form>
+    <div id="vm">
+        <h3>{{title}}</h3>
+        <ol>
+            <li v-for="t in todos">
+                <dl>
+                    <dt contenteditable="true" v-on:blur="update(t, 'name', $event)">{{t.name}}</dt>
+                    <dd contenteditable="true" v-on:blur="update(t, 'description', $event)">{{t.description}}</dd>
+                    <dd><a href="#0" v-on:click="remove(t)">Delete</a></dd>
+
+                </dl>
+            </li>
+        </ol>
+    </div>
+    <script src="https://cdn.bootcss.com/jquery/3.3.1/jquery.min.js"></script>
+    <script src="https://unpkg.com/vue@2.0.1/dist/vue.js"></script>
+    <script src="https://cdn.jsdelivr.net/vue.resource/1.0.3/vue-resource.min.js"></script>
+
+    <script>
+
+        function showError(resp) {
+            resp.json().then(function(result) {
+                console.log('Error: '+ result.message);
+            })
+        }
+        // $(function () {
+            var vm = new Vue({
+                el: '#vm',
+                http: {
+                    timeout: 5000
+                },
+                data: {
+                    title: 'TOTO List',
+                    todos: [],
+                    loading: false
+                },
+                created() {
+                    this.init();
+                },
+                methods: {
+                    init() {
+                        this.loading = true;
+                        this.$resource('/api/todos').get().then((resp) => {
+                            this.loading = false;
+                            resp.json().then((result) => {
+                                this.todos = result.todos;
+                            });
+                        }, (resp) => {
+                            this.loading = false;
+                            showError(resp);
+                        });
+                    },
+                    create(todo) {
+                        this.$resouce('/api/todos').save(todo).then((resp) => {
+                            resp.json().then((result) => {
+                                this.todos.push(result);
+                            }, showError);
+                        })
+                    },
+                    update(todo, prop, e) {
+                        var t = {
+                            name: todo.name,
+                            description: todo.description
+                        };
+                        t[prop] = e.target.innerText;
+                        if (t[prop] === todo[prop]) {
+                            return;
+                        }
+                        this.$resource('/api/todos' + todo.id).update(t).then((resp) => {
+                            resp.json().then((r) => {
+                                todo.name = r.name;
+                                todo.description = r.description;
+                            });
+                        }, (resp) => {
+                            e.target.innerText = todo[prop];
+                            showErrro(resp);
+                        });
+                    },
+                    remove(todo) {
+                        this.$resource('/api/todos/' + todo.id).delete().then((resp) => {
+                            var i;
+                            var index = -1;
+                            for (i = 0; i < this.todos.length; i++) {
+                                if (this.todos[i].id === todo.id) {
+                                    index = i;
+                                    break;
+                                }
+                            }
+                            if (index > 0) {
+                                this.todos.splice(index, 1);
+                            }
+                        }, showError);
+                    }
+                    
+                }
+            });;
+            window.vm = vm; 
+
+            var vmAdd = new Vue({
+                el: '#vmAdd',
+                data: {
+                    name: '',
+                    description: ''
+                },
+                methods: {
+                    submit() {
+                        vm.create(this.$data);
+                        this.name = '';
+                        this.description = '';
+                    }
+                }
+            })
+        // });
+    </script>
+
+</body>
+</html>
